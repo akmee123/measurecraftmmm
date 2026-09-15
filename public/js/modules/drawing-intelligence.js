@@ -3,7 +3,14 @@
   'use strict';
   function headers(){
     var h={'Content-Type':'application/json'};
-    try{var t=localStorage.getItem('mc_token')||localStorage.getItem('mcToken');if(t)h.Authorization='Bearer '+t;var mt=localStorage.getItem('mc_api_token');if(mt)h['X-MC-Token']=mt;}catch(_){}
+    try{
+      var sr=sessionStorage.getItem('mc-session')||localStorage.getItem('mc-session');
+      var ss=sr?JSON.parse(sr):null;
+      var t=(ss&&ss.apiToken)||localStorage.getItem('mc_token')||localStorage.getItem('mcToken');
+      if(t)h.Authorization='Bearer '+t;
+      var mt=localStorage.getItem('mc-api-token')||localStorage.getItem('mc_api_token')||sessionStorage.getItem('mc-api-token');
+      if(mt)h['X-MC-Token']=mt;
+    }catch(_){}
     return h;
   }
   async function post(path,body){
