@@ -4309,6 +4309,26 @@
             _agentRunning = true;
             _agentAbort = false;
             agentClearLog();
+            // Upgrade older email-join sessions that were created before secure
+            // agent credentials were added.
+            try {
+                const sr = sessionStorage.getItem('mc-session') || localStorage.getItem('mc-session');
+                const ss = sr ? JSON.parse(sr) : null;
+                if (ss && !ss.apiToken && ss.email && ss.participantId) {
+                    const rr = await fetch('/api/auth/session-token', {
+                        method: 'POST',
+                        headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({email:ss.email, participantId:ss.participantId})
+                    });
+                    const rd = await rr.json().catch(function(){return {};});
+                    if (rr.ok && rd.success && rd.token) {
+                        ss.apiToken = rd.token;
+                        const payload = JSON.stringify(ss);
+                        if (localStorage.getItem('mc-session')) localStorage.setItem('mc-session', payload);
+                        else sessionStorage.setItem('mc-session', payload);
+                    }
+                }
+            } catch (_) {}
             if (runBtn) runBtn.disabled = true;
             if (stopBtn) stopBtn.disabled = false;
 
@@ -4337,9 +4357,11 @@
                 agentLog('Calling AI agent (room detection)…', 'dim');
                 const headers = { 'Content-Type': 'application/json' };
                 try {
-                    const tok = localStorage.getItem('mc_token') || localStorage.getItem('mcToken');
+                    const sessionRaw = sessionStorage.getItem('mc-session') || localStorage.getItem('mc-session');
+                    const session = sessionRaw ? JSON.parse(sessionRaw) : null;
+                    const tok = (session && session.apiToken) || localStorage.getItem('mc_token') || localStorage.getItem('mcToken');
                     if (tok) headers['Authorization'] = 'Bearer ' + tok;
-                    const mcTok = localStorage.getItem('mc_api_token');
+                    const mcTok = localStorage.getItem('mc-api-token') || localStorage.getItem('mc_api_token') || sessionStorage.getItem('mc-api-token');
                     if (mcTok) headers['X-MC-Token'] = mcTok;
                 } catch (_) {}
 
