@@ -1,6 +1,6 @@
 {
   "name": "measurecraft",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "MeasureCraft \u2014 AI-assisted QS takeoff platform with deterministic core, provenance, validation, agent orchestration and drawing intelligence",
   "main": "server.js",
   "scripts": {
