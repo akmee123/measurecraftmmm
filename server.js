@@ -111,20 +111,30 @@ function rateLimitAi(req, res, next) {
 }
 
 function requireApiToken(req, res, next) {
-  if (!MC_API_TOKEN) {
-    if (process.env.NODE_ENV === 'production') {
-      return res.status(503).json({ success: false, error: 'AI API protection is not configured.', code: 'API_TOKEN_NOT_CONFIGURED' });
+  const hdr = String(req.headers['x-mc-token'] || '').trim();
+  const authHeader = String(req.headers.authorization || '').trim();
+  const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+
+  // A configured shared MC_API_TOKEN remains valid for service-to-service calls.
+  if (MC_API_TOKEN && (hdr === MC_API_TOKEN || bearer === MC_API_TOKEN)) return next();
+
+  // Browser users authenticate through the normal MeasureCraft login/session flow.
+  // Accept a valid signed JWT as the API credential as well. This is important on
+  // Render: the browser must never receive GEMINI_API_KEY or the shared MC_API_TOKEN.
+  const userToken = bearer || (hdr && !MC_API_TOKEN ? hdr : '');
+  if (userToken) {
+    const user = auth.verifyToken(userToken);
+    if (user) {
+      req.user = user;
+      return next();
     }
-    return next();
   }
-  const hdr = req.headers['x-mc-token'] || '';
-  const auth = req.headers.authorization || '';
-  const bearer = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-  const token = String(hdr || bearer || '').trim();
-  if (token && token === MC_API_TOKEN) return next();
+
+  if (!MC_API_TOKEN && process.env.NODE_ENV !== 'production') return next();
+
   return res.status(401).json({
     success: false,
-    error: 'Unauthorized. This server requires an API token (X-MC-Token).',
+    error: 'Agent authentication required. Please sign in again so MeasureCraft can refresh your secure session.',
     code: 'UNAUTHORIZED',
   });
 }
@@ -1284,12 +1294,22 @@ function isValidEmail(email) {
 
 function buildSession({ email, name, participantId, provider }) {
   const cleanEmail = String(email || '').trim().toLowerCase();
+  const cleanParticipantId = participantId ? String(participantId).trim().slice(0, 64) : null;
   const local = cleanEmail.split('@')[0] || 'User';
+  // Signed session/API credential. It contains no Gemini secret and is safe to
+  // send back to the browser for calling authenticated MeasureCraft AI routes.
+  const apiToken = auth.signToken({
+    id: 'participant:' + (cleanParticipantId || cleanEmail),
+    email: cleanEmail,
+    role: 'qs',
+    name: String(name || local).slice(0, 80),
+  });
   return {
     email: cleanEmail,
     name: String(name || local).slice(0, 80),
-    participantId: participantId ? String(participantId).trim().slice(0, 64) : null,
+    participantId: cleanParticipantId,
     provider: provider || 'email',
+    apiToken,
     loggedInAt: Date.now(),
   };
 }
@@ -1300,6 +1320,26 @@ app.get('/api/auth/config', (_req, res) => {
     googleClientId: GOOGLE_CLIENT_ID || null,
     emailJoinEnabled: true,
   });
+});
+
+// Refresh a signed browser credential for an existing research session. The
+// participant/email pair must already be bound in the research store.
+app.post('/api/auth/session-token', (req, res) => {
+  try {
+    const email = String((req.body && req.body.email) || '').trim().toLowerCase();
+    const participantId = String((req.body && req.body.participantId) || '').trim();
+    if (!isValidEmail(email) || !participantId) {
+      return res.status(400).json({ success: false, error: 'Valid email and participantId are required.' });
+    }
+    const bound = research.getParticipantForEmail(email);
+    if (!bound || String(bound) !== participantId) {
+      return res.status(401).json({ success: false, error: 'Session is not bound to this participant.', code: 'SESSION_NOT_BOUND' });
+    }
+    const token = auth.signToken({ id: 'participant:' + participantId, email, role: 'qs', name: email.split('@')[0] || 'User' });
+    res.json({ success: true, token });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message || String(err) });
+  }
 });
 
 app.post('/api/auth/email-join', (req, res) => {
