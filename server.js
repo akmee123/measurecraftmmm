@@ -1197,12 +1197,26 @@ app.post('/api/agent-takeoff', rateLimitAi, requireApiToken, async (req, res) =>
  */
 app.post('/api/agent/analyze', rateLimitAi, requireApiToken, async (req, res) => {
   try {
-    const { image_base64, mime_type, pixel_w, pixel_h, goal } = req.body || {};
+    const { image_base64, mime_type, pixel_w, pixel_h, goal, reference_image_base64, reference_mime_type } = req.body || {};
     if (!image_base64 || typeof image_base64 !== 'string') return res.status(400).json({ success:false, error:'image_base64 is required' });
     const mime = String(mime_type || 'image/jpeg').toLowerCase();
     if (!new Set(['image/jpeg','image/jpg','image/png','image/webp','image/gif']).has(mime)) return res.status(400).json({success:false,error:'Unsupported mime_type'});
     if (image_base64.length > 30 * 1024 * 1024) return res.status(400).json({success:false,error:'image_base64 is too large'});
     if (!GEMINI_API_KEY) return res.status(503).json({success:false,error:'GEMINI_API_KEY is not set on the server.',code:'NO_API_KEY'});
+
+    // Optional: a small reference image (e.g. a cropped symbol/legend entry) the
+    // user attaches to help the model recognize what a given element looks like.
+    // Purely additive — the request works the same without it.
+    let refMime = null;
+    if (reference_image_base64 && typeof reference_image_base64 === 'string') {
+      refMime = String(reference_mime_type || 'image/png').toLowerCase();
+      if (!new Set(['image/jpeg','image/jpg','image/png','image/webp']).has(refMime)) {
+        return res.status(400).json({success:false,error:'Unsupported reference_mime_type'});
+      }
+      if (reference_image_base64.length > 12 * 1024 * 1024) {
+        return res.status(400).json({success:false,error:'reference_image_base64 is too large'});
+      }
+    }
 
     const w=Number(pixel_w)||0, h=Number(pixel_h)||0;
     const model=getModel({json:true});
@@ -1214,9 +1228,12 @@ app.post('/api/agent/analyze', rateLimitAi, requireApiToken, async (req, res) =>
       'Uncertainty must identify ambiguity such as occlusion, unclear wall boundary, missing scale, or uncertain room label.',
       'Do not invent dimensions, heights, materials, or hidden geometry.',
       goal ? `Estimator goal: ${String(goal).slice(0,500)}` : 'Estimator goal: produce a reviewable room/wall/opening/column map for QS takeoff.',
-      w&&h ? `Image size: ${w}×${h} pixels.` : ''
+      w&&h ? `Image size: ${w}×${h} pixels.` : '',
+      refMime ? 'A second reference image is attached AFTER the floor plan. It is NOT part of the floor plan — it is a cropped example (e.g. a legend entry or a symbol) showing what one of the requested elements looks like on this drawing. Use it only to calibrate recognition of that symbol; find and report every matching instance within the floor plan image, not just the reference crop itself.' : ''
     ].filter(Boolean).join('\n');
-    const result=await model.generateContent([{text:prompt},{inlineData:{mimeType:mime==='image/jpg'?'image/jpeg':mime,data:image_base64}}]);
+    const parts = [{text:prompt},{inlineData:{mimeType:mime==='image/jpg'?'image/jpeg':mime,data:image_base64}}];
+    if (refMime) parts.push({inlineData:{mimeType:refMime==='image/jpg'?'image/jpeg':refMime,data:reference_image_base64}});
+    const result=await model.generateContent(parts);
     const parsed=parseJsonLoose(result.response.text());
     const intelligence=drawingIntelligence.analyze(parsed,{pixelW:w,pixelH:h});
     res.json({success:true,model:GEMINI_MODEL,goal:String(goal||''),...intelligence});
