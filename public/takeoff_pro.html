@@ -94,7 +94,6 @@
             <button id="btnBgRemove" data-tooltip="Remove underlay"><i class="fas fa-times"></i></button>
         </div>
         <div class="group">
-            <button id="btnAiDetect" data-tooltip="AI Detect — propose elements from the plan"><i class="fas fa-robot"></i> AI</button>
             <button id="btnAiAgent" data-tooltip="AI Agent — room-wise continuous measure (area, length, counts)"><i class="fas fa-magic"></i> Agent</button>
             <button id="btnMaterials" data-tooltip="Materials"><i class="fas fa-cubes"></i></button>
             <button id="btnRevisions" data-tooltip="Revisions — named snapshots"><i class="fas fa-history"></i> Revisions</button>
@@ -514,7 +513,7 @@
             <button type="button" id="mcAgentClose" title="Close">×</button>
         </div>
         <div class="mc-agent-body">
-            <p class="mc-agent-hint">Calibrate the plan first. The agent detects rooms, then continuously stages <strong>floor area</strong>, <strong>wall length</strong>, and <strong>door/window counts</strong> for review. Nothing is final until you keep the elements.</p>
+            <p class="mc-agent-hint">Calibrate the plan first. The agent detects rooms, then stages only what your goal asks for — e.g. "door count" stages doors only; "floor area and walls" skips openings. Leave it as-is (or say "everything") for a full room-wise takeoff: <strong>floor area</strong>, <strong>wall length</strong>, and <strong>door/window counts</strong>. Nothing is final until you keep the elements.</p>
             <label class="mc-agent-label">Goal</label>
             <input type="text" id="mcAgentGoal" placeholder="e.g. Measure all bedrooms and toilets — area, walls, openings" value="Measure every room: floor area, wall lengths, door and window counts" />
             <div class="mc-agent-actions">
@@ -530,7 +529,7 @@
     <button type="button" class="mc-ai-fab" id="mcAiFab" title="AI Assistant" aria-label="Open AI Assistant"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
     <div class="mc-ai-panel" id="mcAiPanel" role="dialog" aria-label="AI Assistant">
         <div class="mc-ai-head"><span>AI Assistant</span><div class="mc-ai-actions"><button type="button" id="mcAiClose" title="Close">×</button></div></div>
-        <div class="mc-ai-body" id="mcAiBody"><strong>Hi — how can I help?</strong><br><br>Ask about tools, calibration, zoom lock, walls, AI detect, agent, or export.</div>
+        <div class="mc-ai-body" id="mcAiBody"><strong>Hi — how can I help?</strong><br><br>Ask about tools, calibration, zoom lock, walls, the AI agent, or export.</div>
         <div class="mc-ai-foot"><input type="text" id="mcAiInput" placeholder="Ask something…" autocomplete="off" /><button type="button" id="mcAiSend">Send</button></div>
     </div>
     
