@@ -4161,14 +4161,33 @@
             };
         }
 
-        function agentStageRoom(room, toWorldScale, cf) {
+        // Decides which element categories the agent should stage/report based on
+        // the free-text goal (e.g. "door count please" → doors only). An empty or
+        // unrecognized goal falls back to a full room-wise takeoff (all categories).
+        function parseAgentGoalScope(goal) {
+            const g = (goal || '').toLowerCase();
+            const all = { floor: true, walls: true, doors: true, windows: true, columns: true };
+            if (!g.trim()) return all;
+            if (/\ball\b|\beverything\b|\bfull\b|\bcomplete\b|\bfull takeoff\b/.test(g)) return all;
+            const scope = { floor: false, walls: false, doors: false, windows: false, columns: false };
+            if (/\bfloor(s)?\b|\barea(s)?\b/.test(g)) scope.floor = true;
+            if (/\bwall(s)?\b|\blength(s)?\b/.test(g)) scope.walls = true;
+            if (/\bdoor(s)?\b|\bopening(s)?\b/.test(g)) scope.doors = true;
+            if (/\bwindow(s)?\b|\bopening(s)?\b/.test(g)) scope.windows = true;
+            if (/\bcolumn(s)?\b|\bpillar(s)?\b|\bcol(s)?\b/.test(g)) scope.columns = true;
+            const any = scope.floor || scope.walls || scope.doors || scope.windows || scope.columns;
+            return any ? scope : all;
+        }
+
+        function agentStageRoom(room, toWorldScale, cf, scope) {
             const created = [];
             const name = room.name || 'Room';
             const conf = room.confidence;
+            const sc = scope || { floor: true, walls: true, doors: true, windows: true, columns: true };
             const intelligence = { roomId: room.id || null, evidence: Array.isArray(room.evidence) ? room.evidence.slice(0,8) : [], uncertainty: Array.isArray(room.uncertainty) ? room.uncertainty.slice(0,8) : [] };
 
             // Floor area → slab
-            if (room.floor) {
+            if (room.floor && sc.floor) {
                 const b = pxBoxToWorld(room.floor, toWorldScale);
                 const el = createElement('slab', b.x, b.y, b.w, b.h, {
                     source: 'AI_AGENT',
@@ -4184,7 +4203,7 @@
             }
 
             // Walls → length
-            (room.walls || []).forEach(function (wb, i) {
+            if (sc.walls) (room.walls || []).forEach(function (wb, i) {
                 const b = pxBoxToWorld(wb, toWorldScale);
                 let p1, p2, thicknessM = DEFAULT_WALL_THICKNESS_M;
                 if (b.w >= b.h) {
@@ -4220,7 +4239,7 @@
             });
 
             // Doors / windows → count
-            (room.doors || []).forEach(function (db, i) {
+            if (sc.doors) (room.doors || []).forEach(function (db, i) {
                 const b = pxBoxToWorld(db, toWorldScale);
                 const el = createElement('door', b.x, b.y, b.w, b.h, {
                     source: 'AI_AGENT',
@@ -4232,7 +4251,7 @@
                 });
                 created.push(el);
             });
-            (room.windows || []).forEach(function (wb, i) {
+            if (sc.windows) (room.windows || []).forEach(function (wb, i) {
                 const b = pxBoxToWorld(wb, toWorldScale);
                 const el = createElement('window', b.x, b.y, b.w, b.h, {
                     source: 'AI_AGENT',
@@ -4244,7 +4263,7 @@
                 });
                 created.push(el);
             });
-            (room.columns || []).forEach(function (cb, i) {
+            if (sc.columns) (room.columns || []).forEach(function (cb, i) {
                 const b = pxBoxToWorld(cb, toWorldScale);
                 const el = createElement('column', b.x, b.y, b.w, b.h, {
                     source: 'AI_AGENT',
@@ -4262,25 +4281,36 @@
             return created;
         }
 
-        function agentRoomQtyLine(room, toWorldScale, cf) {
+        function agentRoomQtyLine(room, toWorldScale, cf, scope) {
+            const sc = scope || { floor: true, walls: true, doors: true, windows: true, columns: true };
             const parts = [];
-            if (room.floor && cf > 0) {
+            if (sc.floor && room.floor && cf > 0) {
                 const b = pxBoxToWorld(room.floor, toWorldScale);
                 const areaM2 = b.w * b.h * cf * cf;
                 parts.push('area ' + areaM2.toFixed(2) + ' m²');
             }
-            let wallLen = 0;
-            (room.walls || []).forEach(function (wb) {
-                const b = pxBoxToWorld(wb, toWorldScale);
-                const longDu = Math.max(b.w, b.h);
-                wallLen += longDu * (cf > 0 ? cf : 1);
-            });
-            if (wallLen > 0) parts.push('walls ' + wallLen.toFixed(2) + (cf > 0 ? ' m' : ' du'));
-            const nDoor = (room.doors || []).length;
-            const nWin = (room.windows || []).length;
-            if (nDoor) parts.push(nDoor + ' door' + (nDoor === 1 ? '' : 's'));
-            if (nWin) parts.push(nWin + ' window' + (nWin === 1 ? '' : 's'));
-            return parts.join(' · ') || 'geometry staged';
+            if (sc.walls) {
+                let wallLen = 0;
+                (room.walls || []).forEach(function (wb) {
+                    const b = pxBoxToWorld(wb, toWorldScale);
+                    const longDu = Math.max(b.w, b.h);
+                    wallLen += longDu * (cf > 0 ? cf : 1);
+                });
+                if (wallLen > 0) parts.push('walls ' + wallLen.toFixed(2) + (cf > 0 ? ' m' : ' du'));
+            }
+            if (sc.doors) {
+                const nDoor = (room.doors || []).length;
+                if (nDoor) parts.push(nDoor + ' door' + (nDoor === 1 ? '' : 's'));
+            }
+            if (sc.windows) {
+                const nWin = (room.windows || []).length;
+                if (nWin) parts.push(nWin + ' window' + (nWin === 1 ? '' : 's'));
+            }
+            if (sc.columns) {
+                const nCol = (room.columns || []).length;
+                if (nCol) parts.push(nCol + ' column' + (nCol === 1 ? '' : 's'));
+            }
+            return parts.join(' · ') || 'nothing in scope for this room';
         }
 
         async function runAiAgent() {
@@ -4303,6 +4333,7 @@
 
             const goalEl = document.getElementById('mcAgentGoal');
             const goal = (goalEl && goalEl.value) ? goalEl.value.trim() : '';
+            const scope = parseAgentGoalScope(goal);
             const runBtn = document.getElementById('mcAgentRun');
             const stopBtn = document.getElementById('mcAgentStop');
 
@@ -4417,24 +4448,24 @@
                         break;
                     }
                     const room = rooms[i];
-                    const staged = agentStageRoom(room, toWorldScale, cf || 1);
+                    const staged = agentStageRoom(room, toWorldScale, cf || 1, scope);
                     staged.forEach(function (el) { elements.push(el); });
                     totalEls += staged.length;
 
-                    const qtyLine = agentRoomQtyLine(room, toWorldScale, cf);
+                    const qtyLine = agentRoomQtyLine(room, toWorldScale, cf, scope);
                     agentLog((i + 1) + '/' + rooms.length + ' · ' + (room.name || 'Room') + ' — ' + qtyLine, 'ok');
 
-                    // Accumulate totals for summary
-                    if (room.floor && cf > 0) {
+                    // Accumulate totals for summary (only for categories the goal asked for)
+                    if (scope.floor && room.floor && cf > 0) {
                         const b = pxBoxToWorld(room.floor, toWorldScale);
                         totalArea += b.w * b.h * cf * cf;
                     }
-                    (room.walls || []).forEach(function (wb) {
+                    if (scope.walls) (room.walls || []).forEach(function (wb) {
                         const b = pxBoxToWorld(wb, toWorldScale);
                         totalWall += Math.max(b.w, b.h) * (cf > 0 ? cf : 1);
                     });
-                    totalDoors += (room.doors || []).length;
-                    totalWindows += (room.windows || []).length;
+                    if (scope.doors) totalDoors += (room.doors || []).length;
+                    if (scope.windows) totalWindows += (room.windows || []).length;
 
                     if (typeof renderAll === 'function') renderAll();
                     else if (typeof renderCanvas2D === 'function') renderCanvas2D();
@@ -4449,12 +4480,10 @@
                 const tot = document.getElementById('mcAgentTotals');
                 if (tot) {
                     const bits = [totalEls + ' elements'];
-                    if (cf > 0) {
-                        bits.push('floor ~' + totalArea.toFixed(1) + ' m²');
-                        bits.push('walls ~' + totalWall.toFixed(1) + ' m');
-                    }
-                    if (totalDoors) bits.push(totalDoors + ' doors');
-                    if (totalWindows) bits.push(totalWindows + ' windows');
+                    if (scope.floor && cf > 0) bits.push('floor ~' + totalArea.toFixed(1) + ' m²');
+                    if (scope.walls && cf > 0) bits.push('walls ~' + totalWall.toFixed(1) + ' m');
+                    if (scope.doors && totalDoors) bits.push(totalDoors + ' doors');
+                    if (scope.windows && totalWindows) bits.push(totalWindows + ' windows');
                     tot.textContent = 'Totals: ' + bits.join(' · ');
                 }
                 agentLog('Done. Review elements in the tree; edit or delete as needed. Live Quantities updates automatically.', 'ok');
@@ -8772,7 +8801,7 @@
             }
             const hasTakeoff = (elements || []).some(e => e && !e.hidden && (e.type === 'wall' || e.type === 'slab' || e.type === 'column' || e.type === 'beam'));
             if (!hasTakeoff) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-tertiary);padding:14px;">No measured elements yet. Draw walls / slabs / columns, or run AI Detect, then open this panel (↑ Quantities).</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-tertiary);padding:14px;">No measured elements yet. Draw walls / slabs / columns, or run the AI Agent, then open this panel (↑ Quantities).</td></tr>';
                 return;
             }
             let html = '';
@@ -12219,7 +12248,6 @@
                 btnToggleElements.addEventListener('click', toggleElementsOnDrawing);
                 btnToggleElements.title = 'Hide measured elements on drawing';
             }
-            document.getElementById('btnAiDetect').addEventListener('click', aiDetectElements);
             if (typeof wireAiAgentUI === 'function') wireAiAgentUI();
 
             document.getElementById('btnExport').addEventListener('click', openExportModal);
@@ -13936,7 +13964,7 @@
             fab.addEventListener('click',()=>{if(panel.classList.contains('open'))closePanel();else openPanel()});
             document.getElementById('mcAiClose').addEventListener('click',closePanel);
             let mcAiHistory=[];
-            function offlineReply(q){const l=(q||'').toLowerCase();let r='Import a drawing, calibrate scale, then use tools to measure. Lock Zoom helps with trackpad.';if(l.includes('calibr'))r='Click Calibrate, pick two points on a known length, enter real metres.';else if(l.includes('zoom')||l.includes('lock')||l.includes('track'))r='Toolbar: Zoom In/Out/Fit + Lock Zoom. When locked, trackpad scroll will not zoom (Ctrl+scroll still works).';else if(l.includes('wall'))r='Select Wall, click points along the wall, press Enter to finish.';else if(l.includes('export')||l.includes('boq'))r='Use Export for Excel BOQ, marked plan, or project JSON.';else if(l.includes('ai'))r='AI Detect proposes elements from the plan image after calibration.';return r}
+            function offlineReply(q){const l=(q||'').toLowerCase();let r='Import a drawing, calibrate scale, then use tools to measure. Lock Zoom helps with trackpad.';if(l.includes('calibr'))r='Click Calibrate, pick two points on a known length, enter real metres.';else if(l.includes('zoom')||l.includes('lock')||l.includes('track'))r='Toolbar: Zoom In/Out/Fit + Lock Zoom. When locked, trackpad scroll will not zoom (Ctrl+scroll still works).';else if(l.includes('wall'))r='Select Wall, click points along the wall, press Enter to finish.';else if(l.includes('export')||l.includes('boq'))r='Use Export for Excel BOQ, marked plan, or project JSON.';else if(l.includes('ai'))r='AI Agent proposes elements from the plan image after calibration — tell it a goal (e.g. "door count") and it stages just that.';return r}
             async function reply(q){
                 const esc=(typeof escapeHtml==='function')?escapeHtml:(s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'));
                 const thinkId='mcAiThink'+Date.now();
