@@ -516,6 +516,15 @@
             <p class="mc-agent-hint">Calibrate the plan first. The agent detects rooms, then stages only what your goal asks for — e.g. "door count" stages doors only; "floor area and walls" skips openings. Leave it as-is (or say "everything") for a full room-wise takeoff: <strong>floor area</strong>, <strong>wall length</strong>, and <strong>door/window counts</strong>. Nothing is final until you keep the elements.</p>
             <label class="mc-agent-label">Goal</label>
             <input type="text" id="mcAgentGoal" placeholder="e.g. Measure all bedrooms and toilets — area, walls, openings" value="Measure every room: floor area, wall lengths, door and window counts" />
+            <label class="mc-agent-label">Reference image (optional)</label>
+            <div class="mc-agent-refimg-row">
+                <input type="file" id="mcAgentRefImage" accept="image/png,image/jpeg,image/webp" style="display:none;" />
+                <button type="button" id="mcAgentRefImageBtn"><i class="fas fa-image"></i> Attach example</button>
+                <span id="mcAgentRefImageName"></span>
+                <button type="button" id="mcAgentRefImageClear" style="display:none;" title="Remove reference image">×</button>
+            </div>
+            <p class="mc-agent-hint" style="margin-top:-4px;">Optional — a cropped screenshot of a symbol or legend entry (e.g. what the door symbol looks like on this plan) to help the agent recognize it. Not required.</p>
+            <img id="mcAgentRefImagePreview" style="display:none;" alt="Reference example" />
             <div class="mc-agent-actions">
                 <button type="button" class="primary" id="mcAgentRun"><i class="fas fa-play"></i> Run agent</button>
                 <button type="button" id="mcAgentStop" disabled>Stop</button>
