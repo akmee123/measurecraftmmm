@@ -4364,6 +4364,7 @@
             if (stopBtn) stopBtn.disabled = false;
 
             agentLog('Preparing underlay…', 'dim');
+            if (_agentRefImage) agentLog('Including your reference image as a visual example.', 'dim');
             try {
                 const pixelW = backgroundImage.img.naturalWidth;
                 const pixelH = backgroundImage.img.naturalHeight;
@@ -4405,6 +4406,8 @@
                         pixel_w: sendW,
                         pixel_h: sendH,
                         goal: goal,
+                        reference_image_base64: _agentRefImage ? _agentRefImage.base64 : undefined,
+                        reference_mime_type: _agentRefImage ? _agentRefImage.mime : undefined,
                     }),
                 });
                 const data = await resp.json().catch(function () { return {}; });
@@ -4508,6 +4511,53 @@
             if (run) run.addEventListener('click', runAiAgent);
             const stop = document.getElementById('mcAgentStop');
             if (stop) stop.addEventListener('click', function () { _agentAbort = true; });
+
+            const refBtn = document.getElementById('mcAgentRefImageBtn');
+            const refInput = document.getElementById('mcAgentRefImage');
+            const refClear = document.getElementById('mcAgentRefImageClear');
+            if (refBtn && refInput) refBtn.addEventListener('click', function () { refInput.click(); });
+            if (refInput) refInput.addEventListener('change', function (e) {
+                const file = e.target.files && e.target.files[0];
+                if (!file) return;
+                if (!/^image\/(png|jpeg|jpg|webp)$/i.test(file.type)) {
+                    alert('Reference image must be a PNG, JPG, or WEBP.');
+                    refInput.value = '';
+                    return;
+                }
+                if (file.size > 8 * 1024 * 1024) {
+                    alert('Reference image is too large (max 8 MB).');
+                    refInput.value = '';
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function () {
+                    const dataUrl = reader.result || '';
+                    const base64 = String(dataUrl).split(',')[1] || '';
+                    _agentRefImage = { base64: base64, mime: file.type || 'image/png' };
+                    const nameEl = document.getElementById('mcAgentRefImageName');
+                    if (nameEl) nameEl.textContent = file.name;
+                    const preview = document.getElementById('mcAgentRefImagePreview');
+                    if (preview) { preview.src = dataUrl; preview.style.display = 'block'; }
+                    if (refClear) refClear.style.display = 'inline-block';
+                };
+                reader.onerror = function () { alert('Could not read that image — try another file.'); };
+                reader.readAsDataURL(file);
+            });
+            if (refClear) refClear.addEventListener('click', clearAgentRefImage);
+        }
+
+        let _agentRefImage = null; // { base64, mime } — optional user-attached reference example
+
+        function clearAgentRefImage() {
+            _agentRefImage = null;
+            const input = document.getElementById('mcAgentRefImage');
+            if (input) input.value = '';
+            const nameEl = document.getElementById('mcAgentRefImageName');
+            if (nameEl) nameEl.textContent = '';
+            const preview = document.getElementById('mcAgentRefImagePreview');
+            if (preview) { preview.removeAttribute('src'); preview.style.display = 'none'; }
+            const clearBtn = document.getElementById('mcAgentRefImageClear');
+            if (clearBtn) clearBtn.style.display = 'none';
         }
 
         // ----- AI REVIEW (Accept / Reject / Review) -----
