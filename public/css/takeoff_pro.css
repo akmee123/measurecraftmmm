@@ -1,5 +1,5 @@
 /* ================================================================
-   QUANTITY TAKEOFF PRO — REFINED DESIGN SYSTEM
+   QUANTITY TAKEOFF PRO â€” REFINED DESIGN SYSTEM
    Modern, accessible, professional QS workspace
 =============================================================== */
 
@@ -328,7 +328,7 @@ button:disabled {
     border-color: #255a50;
 }
 
-/* Dark / light theme — always visible in top app header */
+/* Dark / light theme â€” always visible in top app header */
 #app-header .header-actions #btnThemeHeader {
     width: 34px;
     height: 34px;
@@ -477,7 +477,7 @@ button:disabled {
     color: #fff;
     border-color: var(--success);
 }
-/* Distinguish rotate (90°) from undo/redo history arrows */
+/* Distinguish rotate (90Â°) from undo/redo history arrows */
 #toolbar button .btn-deg {
     font-size: 9px;
     font-weight: 700;
@@ -800,7 +800,7 @@ button:disabled {
     width: 100%;
     height: 100%;
 }
-/* 2D/3D lives inside .mc-sheet-nav — no absolute overlay on sheet tabs */
+/* 2D/3D lives inside .mc-sheet-nav â€” no absolute overlay on sheet tabs */
 #viewer-container .viewer-tabs {
     position: relative;
     top: auto;
@@ -1364,7 +1364,7 @@ button:disabled {
     box-shadow: 0 3px 8px rgba(37, 99, 235, 0.35);
 }
 
-/* ===== Export modal — graphical preview + one-click downloads ===== */
+/* ===== Export modal â€” graphical preview + one-click downloads ===== */
 #exportModal .modal {
     max-width: 920px;
     width: 94%;
@@ -2186,6 +2186,47 @@ body.focus-mode .focus-exit { display: inline-flex; }
     opacity: 0.5;
     cursor: default;
 }
+.mc-agent-refimg-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+#mcAgentRefImageBtn {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary, var(--bg-primary));
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+#mcAgentRefImageName {
+    font-size: 11px;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 160px;
+}
+#mcAgentRefImageClear {
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 6px;
+}
+#mcAgentRefImagePreview {
+    max-width: 100%;
+    max-height: 100px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    object-fit: contain;
+    background: var(--bg-primary);
+}
 .mc-agent-log {
     min-height: 120px;
     max-height: 220px;
@@ -2462,7 +2503,7 @@ body.focus-mode .focus-exit { display: inline-flex; }
     background: rgba(5, 150, 105, 0.12);
 }
 
-/* Multi-sheet navigator — single top bar: 2D/3D | sheets | + | status */
+/* Multi-sheet navigator â€” single top bar: 2D/3D | sheets | + | status */
 .mc-sheet-nav {
     position: relative;
     z-index: 25;
